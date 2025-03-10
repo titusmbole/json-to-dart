@@ -268,6 +268,10 @@
                       <input type="checkbox" id="createFromJson" checked>
                       <label for="createFromJson">fromJson()</label>
                     </div>
+                    <div class="pretty-checkbox">
+                      <input type="checkbox" id="useDartNaming" checked>
+                      <label for="useDartNaming">Use Dart naming (camelCase)</label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -308,6 +312,7 @@
               <li><i class="fas fa-check-circle"></i> Null safety support</li>
               <li><i class="fas fa-check-circle"></i> Automatic type detection</li>
               <li><i class="fas fa-check-circle"></i> toJson() and fromJson() generation</li>
+              <li><i class="fas fa-check-circle"></i> Dart naming convention support (camelCase)</li>
               <li><i class="fas fa-check-circle"></i> Dark/Light theme toggle</li>
             </ul>
           </div>
@@ -422,6 +427,7 @@
       const useNullSafety = document.getElementById('nullSafety').checked;
       const createToJson = document.getElementById('createToJson').checked;
       const createFromJson = document.getElementById('createFromJson').checked;
+      const useDartNaming = document.getElementById('useDartNaming').checked;
       
       if (!jsonInput) {
         showAlert('Please enter JSON to convert', 'warning');
@@ -430,7 +436,7 @@
       
       try {
         const jsonObject = JSON.parse(jsonInput);
-        const dartCode = generateDartCode(jsonObject, className, useNullSafety, createToJson, createFromJson);
+        const dartCode = generateDartCode(jsonObject, className, useNullSafety, createToJson, createFromJson, useDartNaming);
         document.getElementById('outputEditor').value = dartCode;
         showAlert('JSON successfully converted to Dart!', 'success');
       } catch (error) {
@@ -475,26 +481,39 @@
     
     // Convert to camelCase function
     function toCamelCase(str) {
-      return str.replace(/[^a-zA-Z0-9]+(.)/g, (match, chr) => chr.toUpperCase())
-                .replace(/[^a-zA-Z0-9_$]/g, '')
-                .replace(/^[0-9]/, '_$&');
+      return str
+        .replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) => {
+          return index === 0 ? word.toLowerCase() : word.toUpperCase();
+        })
+        .replace(/\s+/g, '')
+        .replace(/[^a-zA-Z0-9_$]/g, '')
+        .replace(/^[0-9]/, '_$&');
     }
     
     // Convert to PascalCase function
     function toPascalCase(str) {
-      const camelCase = toCamelCase(str);
-      return camelCase.charAt(0).toUpperCase() + camelCase.slice(1);
+      return str
+        .replace(/(?:^\w|[A-Z]|\b\w)/g, (word) => word.toUpperCase())
+        .replace(/\s+/g, '')
+        .replace(/[^a-zA-Z0-9_$]/g, '')
+        .replace(/^[0-9]/, '_$&');
+    }
+    
+    // Convert property name based on settings
+    function convertPropertyName(key, useDartNaming) {
+      return useDartNaming ? toCamelCase(key) : key;
     }
     
     // Generate Dart class for nested objects
-    function generateNestedClass(obj, className, useNullSafety, createToJson, createFromJson) {
+    function generateNestedClass(obj, className, useNullSafety, createToJson, createFromJson, useDartNaming) {
       let nestedClasses = [];
       const properties = [];
       const toJsonProperties = [];
       const fromJsonProperties = [];
       
       for (const [key, value] of Object.entries(obj)) {
-        const propertyName = toCamelCase(key);
+        const originalKey = key;
+        const propertyName = convertPropertyName(key, useDartNaming);
         let propertyType = detectType(value, useNullSafety);
         
         // Handle nested objects
@@ -507,7 +526,8 @@
             nestedClassName, 
             useNullSafety, 
             createToJson, 
-            createFromJson
+            createFromJson,
+            useDartNaming
           );
           nestedClasses.push(nestedClassCode);
         }
@@ -522,7 +542,8 @@
             nestedClassName, 
             useNullSafety, 
             createToJson, 
-            createFromJson
+            createFromJson,
+            useDartNaming
           );
           nestedClasses.push(nestedClassCode);
         }
@@ -531,19 +552,19 @@
         
         if (createToJson) {
           if (propertyType.includes('List<') && propertyType.includes('>?')) {
-            toJsonProperties.push(`    '${key}': ${propertyName}${useNullSafety ? '?' : ''}.map((e) => e.toJson()).toList(),`);
+            toJsonProperties.push(`    '${originalKey}': ${propertyName}${useNullSafety ? '?' : ''}.map((e) => e.toJson()).toList(),`);
           } else if (propertyType.includes('List<') && !propertyType.includes('>?')) {
-            toJsonProperties.push(`    '${key}': ${propertyName}.map((e) => e.toJson()).toList(),`);
+            toJsonProperties.push(`    '${originalKey}': ${propertyName}.map((e) => e.toJson()).toList(),`);
           } else if (propertyType.endsWith('?') && !propertyType.startsWith('String') && 
                     !propertyType.startsWith('int') && !propertyType.startsWith('double') && 
                     !propertyType.startsWith('bool') && !propertyType.startsWith('dynamic')) {
-            toJsonProperties.push(`    '${key}': ${propertyName}?.toJson(),`);
+            toJsonProperties.push(`    '${originalKey}': ${propertyName}?.toJson(),`);
           } else if (!propertyType.endsWith('?') && !propertyType.startsWith('String') && 
                     !propertyType.startsWith('int') && !propertyType.startsWith('double') && 
                     !propertyType.startsWith('bool') && !propertyType.startsWith('dynamic')) {
-            toJsonProperties.push(`    '${key}': ${propertyName}.toJson(),`);
+            toJsonProperties.push(`    '${originalKey}': ${propertyName}.toJson(),`);
           } else {
-            toJsonProperties.push(`    '${key}': ${propertyName},`);
+            toJsonProperties.push(`    '${originalKey}': ${propertyName},`);
           }
         }
         
@@ -551,20 +572,20 @@
           if (propertyType.includes('List<') && !propertyType.startsWith('List<dynamic') && !propertyType.startsWith('List<String') && 
               !propertyType.startsWith('List<int') && !propertyType.startsWith('List<double') && !propertyType.startsWith('List<bool')) {
             const listType = propertyType.replace('List<', '').replace('>?', '').replace('>', '');
-            fromJsonProperties.push(`      ${propertyName}: json['${key}'] != null ? List<${listType}>.from(json['${key}'].map((x) => ${listType}.fromJson(x))) : ${useNullSafety ? 'null' : '[]'},`);
+            fromJsonProperties.push(`      ${propertyName}: json['${originalKey}'] != null ? List<${listType}>.from(json['${originalKey}'].map((x) => ${listType}.fromJson(x))) : ${useNullSafety ? 'null' : '[]'},`);
           } else if (propertyType.endsWith('?') && !propertyType.startsWith('String') && 
                     !propertyType.startsWith('int') && !propertyType.startsWith('double') && 
                     !propertyType.startsWith('bool') && !propertyType.startsWith('dynamic') && 
                     !propertyType.startsWith('List')) {
             const type = propertyType.replace('?', '');
-            fromJsonProperties.push(`      ${propertyName}: json['${key}'] != null ? ${type}.fromJson(json['${key}']) : null,`);
+            fromJsonProperties.push(`      ${propertyName}: json['${originalKey}'] != null ? ${type}.fromJson(json['${originalKey}']) : null,`);
           } else if (!propertyType.endsWith('?') && !propertyType.startsWith('String') && 
                     !propertyType.startsWith('int') && !propertyType.startsWith('double') && 
                     !propertyType.startsWith('bool') && !propertyType.startsWith('dynamic') && 
                     !propertyType.startsWith('List')) {
-            fromJsonProperties.push(`      ${propertyName}: ${propertyType}.fromJson(json['${key}']),`);
+            fromJsonProperties.push(`      ${propertyName}: ${propertyType}.fromJson(json['${originalKey}']),`);
           } else {
-            fromJsonProperties.push(`      ${propertyName}: json['${key}'],`);
+            fromJsonProperties.push(`      ${propertyName}: json['${originalKey}'],`);
           }
         }
       }
@@ -605,7 +626,7 @@
     }
     
     // Main function to generate Dart code
-    function generateDartCode(jsonObject, className, useNullSafety, createToJson, createFromJson) {
+    function generateDartCode(jsonObject, className, useNullSafety, createToJson, createFromJson, useDartNaming) {
       let dartCode = '';
       
       if (Array.isArray(jsonObject)) {
@@ -616,7 +637,7 @@
         jsonObject = jsonObject[0]; // Use the first item for the class structure
       }
       
-      dartCode = generateNestedClass(jsonObject, className, useNullSafety, createToJson, createFromJson);
+      dartCode = generateNestedClass(jsonObject, className, useNullSafety, createToJson, createFromJson, useDartNaming);
       
       return dartCode;
     }
@@ -627,6 +648,8 @@
         convertJsonToDart();
       }
     });
+
+    
   </script>
 </body>
 </html>
