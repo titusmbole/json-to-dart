@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON to Dart Converter</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #7952b3;
+      --secondary-color: #61dafb;
+      --dark-color: #212529;
+      --light-color: #f8f9fa;
+    }
+    
+    body {
+      background-color: var(--light-color);
+      min-height: 100vh;
+    }
+    
+    .gradient-custom {
+      background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    }
+    
+    .card {
+      border-radius: 1rem;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+    
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+    }
+    
+    .editor {
+      min-height: 300px;
+      border-radius: 0.5rem;
+      font-family: monospace;
+      resize: vertical;
+    }
+    
+    .btn-primary {
+      background-color: var(--primary-color);
+      border-color: var(--primary-color);
+    }
+    
+    .btn-primary:hover {
+      background-color: #6742a3;
+      border-color: #6742a3;
+    }
+    
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      opacity: 0.7;
+      transition: opacity 0.3s;
+    }
+    
+    .copy-btn:hover {
+      opacity: 1;
+    }
+    
+    .section-header {
+      margin-bottom: 1rem;
+      position: relative;
+    }
+    
+    .section-header::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -5px;
+      width: 50px;
+      height: 3px;
+      background: var(--primary-color);
+    }
+    
+    .alert {
+      border-radius: 0.5rem;
+    }
+    
+    #outputEditor {
+      background-color: #2d2d2d;
+      color: #f8f8f2;
+    }
+    
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+    }
+    
+    body.dark-theme {
+      background-color: #1a1a1a;
+      color: #f8f8f2;
+    }
+    
+    body.dark-theme .card {
+      background-color: #2d2d2d;
+      color: #f8f8f2;
+    }
+    
+    body.dark-theme .form-control {
+      background-color: #3d3d3d;
+      color: #f8f8f2;
+      border-color: #4d4d4d;
+    }
+    
+    .features-list {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    
+    .features-list li {
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .features-list i {
+      color: var(--primary-color);
+      margin-right: 0.5rem;
+    }
+    
+    .language-indicators {
+      display: flex;
+      margin-bottom: 1rem;
+    }
+    
+    .language-indicator {
+      padding: 0.25rem 0.5rem;
+      margin-right: 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+    
+    .pretty-checkbox {
+      position: relative;
+      display: inline-block;
+      margin-right: 10px;
+    }
+    
+    .pretty-checkbox input[type="checkbox"] {
+      opacity: 0;
+      position: absolute;
+    }
+    
+    .pretty-checkbox label {
+      position: relative;
+      display: inline-block;
+      padding-left: 30px;
+      cursor: pointer;
+    }
+    
+    .pretty-checkbox label:before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #7952b3;
+      border-radius: 4px;
+      background-color: transparent;
+    }
+    
+    .pretty-checkbox input[type="checkbox"]:checked + label:after {
+      content: '\f00c';
+      font-family: 'Font Awesome 5 Free';
+      font-weight: 900;
+      position: absolute;
+      top: 2px;
+      left: 3px;
+      color: #7952b3;
+      font-size: 14px;
+    }
+    
+    .typing-effect::after {
+      content: '|';
+      animation: blink 0.7s infinite;
+    }
+    
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="theme-toggle">
+    <button class="btn btn-sm btn-outline-secondary" id="themeToggleBtn">
+      <i class="fas fa-moon"></i>
+    </button>
+  </div>
+
+  <div class="container py-5">
+    <div class="row mb-4">
+      <div class="col-12 text-center">
+        <h1 class="fw-bold">
+          <span class="gradient-custom px-2 py-1 text-white rounded">JSON</span> to 
+          <span class="gradient-custom px-2 py-1 text-white rounded">Dart</span> Converter
+        </h1>
+        <p class="lead typing-effect" id="subtitle">Transform your JSON into Dart classes effortlessly</p>
+      </div>
+    </div>
+    
+    <div class="row">
+      <div class="col-lg-8 mx-auto">
+        <div class="card mb-4">
+          <div class="card-body p-4">
+            <!-- Alert container -->
+            <div id="alertContainer"></div>
+            
+            <!-- Input section -->
+            <div class="mb-4">
+              <div class="section-header">
+                <h4><i class="fas fa-code"></i> Input JSON</h4>
+              </div>
+              <div class="language-indicators">
+                <span class="language-indicator bg-primary text-white">JSON</span>
+              </div>
+              <div class="position-relative">
+                <textarea id="jsonInput" class="form-control editor mb-2" placeholder="Paste your JSON here..."></textarea>
+                <button class="btn btn-sm btn-outline-secondary copy-btn" onclick="pasteFromClipboard()">
+                  <i class="fas fa-paste"></i>
+                </button>
+              </div>
+              <div class="text-end">
+                <button class="btn btn-sm btn-outline-secondary" onclick="formatJson()">
+                  <i class="fas fa-indent"></i> Format JSON
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="clearJson()">
+                  <i class="fas fa-eraser"></i> Clear
+                </button>
+              </div>
+            </div>
+            
+            <!-- Settings section -->
+            <div class="mb-4">
+              <div class="section-header">
+                <h4><i class="fas fa-cog"></i> Settings</h4>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="className" class="form-label">Class Name</label>
+                  <input type="text" class="form-control" id="className" placeholder="e.g. User" value="MyClass">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label class="form-label">Options</label>
+                  <div>
+                    <div class="pretty-checkbox">
+                      <input type="checkbox" id="nullSafety" checked>
+                      <label for="nullSafety">Null Safety</label>
+                    </div>
+                    <div class="pretty-checkbox">
+                      <input type="checkbox" id="createToJson" checked>
+                      <label for="createToJson">toJson()</label>
+                    </div>
+                    <div class="pretty-checkbox">
+                      <input type="checkbox" id="createFromJson" checked>
+                      <label for="createFromJson">fromJson()</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="d-grid gap-2 mb-4">
+              <button id="convertBtn" class="btn btn-primary" onclick="convertJsonToDart()">
+                <i class="fas fa-magic"></i> Convert to Dart
+              </button>
+            </div>
+            
+            <!-- Output section -->
+            <div>
+              <div class="section-header">
+                <h4><i class="fas fa-file-code"></i> Dart Class Output</h4>
+              </div>
+              <div class="language-indicators">
+                <span class="language-indicator bg-info text-white">Dart</span>
+              </div>
+              <div class="position-relative">
+                <textarea id="outputEditor" class="form-control editor" readonly></textarea>
+                <button class="btn btn-sm btn-outline-light copy-btn" onclick="copyToClipboard()">
+                  <i class="fas fa-copy"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Features section -->
+        <div class="card">
+          <div class="card-body p-4">
+            <h4 class="mb-3"><i class="fas fa-star"></i> Features</h4>
+            <ul class="features-list">
+              <li><i class="fas fa-check-circle"></i> Fast and accurate JSON to Dart conversion</li>
+              <li><i class="fas fa-check-circle"></i> Support for nested objects and arrays</li>
+              <li><i class="fas fa-check-circle"></i> Null safety support</li>
+              <li><i class="fas fa-check-circle"></i> Automatic type detection</li>
+              <li><i class="fas fa-check-circle"></i> toJson() and fromJson() generation</li>
+              <li><i class="fas fa-check-circle"></i> Dark/Light theme toggle</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <footer class="text-center mt-5">
+      <p>JSON to Dart Converter &copy; 2025 | <a href="#" class="text-decoration-none">About</a> | <a href="#" class="text-decoration-none">Privacy Policy</a></p>
+    </footer>
+  </div>
+
+  <!-- Bootstrap JS Bundle with Popper -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Typing effect for subtitle
+    const subtitleElement = document.getElementById('subtitle');
+    const subtitleText = subtitleElement.textContent;
+    subtitleElement.textContent = '';
+    
+    let i = 0;
+    function typeEffect() {
+      if (i < subtitleText.length) {
+        subtitleElement.textContent += subtitleText.charAt(i);
+        i++;
+        setTimeout(typeEffect, 50);
+      } else {
+        subtitleElement.classList.remove('typing-effect');
+      }
+    }
+    
+    setTimeout(typeEffect, 1000);
+    
+    // Theme toggle function
+    document.getElementById('themeToggleBtn').addEventListener('click', function() {
+      document.body.classList.toggle('dark-theme');
+      const icon = this.querySelector('i');
+      if (document.body.classList.contains('dark-theme')) {
+        icon.classList.remove('fa-moon');
+        icon.classList.add('fa-sun');
+      } else {
+        icon.classList.remove('fa-sun');
+        icon.classList.add('fa-moon');
+      }
+    });
+    
+    // Show alert function
+    function showAlert(message, type) {
+      const alertContainer = document.getElementById('alertContainer');
+      const alertId = 'alert-' + Date.now();
+      
+      const alertHTML = `
+        <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      `;
+      
+      alertContainer.innerHTML = alertHTML;
+      
+      // Auto dismiss after 5 seconds
+      setTimeout(() => {
+        const alertElement = document.getElementById(alertId);
+        if (alertElement) {
+          const bsAlert = new bootstrap.Alert(alertElement);
+          bsAlert.close();
+        }
+      }, 5000);
+    }
+    
+    // Format JSON function
+    function formatJson() {
+      const jsonInput = document.getElementById('jsonInput');
+      try {
+        const json = JSON.parse(jsonInput.value);
+        jsonInput.value = JSON.stringify(json, null, 2);
+        showAlert('JSON formatted successfully!', 'success');
+      } catch (error) {
+        showAlert('Invalid JSON: ' + error.message, 'danger');
+      }
+    }
+    
+    // Clear JSON function
+    function clearJson() {
+      document.getElementById('jsonInput').value = '';
+      document.getElementById('outputEditor').value = '';
+    }
+    
+    // Copy to clipboard function
+    function copyToClipboard() {
+      const outputEditor = document.getElementById('outputEditor');
+      outputEditor.select();
+      document.execCommand('copy');
+      showAlert('Dart code copied to clipboard!', 'success');
+    }
+    
+    // Paste from clipboard function
+    async function pasteFromClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('jsonInput').value = text;
+        showAlert('Pasted from clipboard!', 'info');
+      } catch (error) {
+        showAlert('Unable to read from clipboard: ' + error.message, 'warning');
+      }
+    }
+    
+    // Convert JSON to Dart function
+    function convertJsonToDart() {
+      const jsonInput = document.getElementById('jsonInput').value.trim();
+      const className = document.getElementById('className').value || 'MyClass';
+      const useNullSafety = document.getElementById('nullSafety').checked;
+      const createToJson = document.getElementById('createToJson').checked;
+      const createFromJson = document.getElementById('createFromJson').checked;
+      
+      if (!jsonInput) {
+        showAlert('Please enter JSON to convert', 'warning');
+        return;
+      }
+      
+      try {
+        const jsonObject = JSON.parse(jsonInput);
+        const dartCode = generateDartCode(jsonObject, className, useNullSafety, createToJson, createFromJson);
+        document.getElementById('outputEditor').value = dartCode;
+        showAlert('JSON successfully converted to Dart!', 'success');
+      } catch (error) {
+        showAlert('Error parsing JSON: ' + error.message, 'danger');
+      }
+    }
+    
+    // Detect type function
+    function detectType(value, useNullSafety) {
+      if (value === null) {
+        return useNullSafety ? 'dynamic?' : 'dynamic';
+      }
+      
+      if (Array.isArray(value)) {
+        if (value.length === 0) {
+          return useNullSafety ? 'List<dynamic>?' : 'List<dynamic>';
+        }
+        
+        const elementType = detectType(value[0], false);
+        return useNullSafety ? `List<${elementType}>?` : `List<${elementType}>`;
+      }
+      
+      const type = typeof value;
+      
+      if (type === 'object') {
+        return toPascalCase(Object.keys(value)[0] || 'NestedObject');
+      }
+      
+      switch (type) {
+        case 'string':
+          return useNullSafety ? 'String?' : 'String';
+        case 'number':
+          return value % 1 === 0 
+            ? (useNullSafety ? 'int?' : 'int') 
+            : (useNullSafety ? 'double?' : 'double');
+        case 'boolean':
+          return useNullSafety ? 'bool?' : 'bool';
+        default:
+          return useNullSafety ? 'dynamic?' : 'dynamic';
+      }
+    }
+    
+    // Convert to camelCase function
+    function toCamelCase(str) {
+      return str.replace(/[^a-zA-Z0-9]+(.)/g, (match, chr) => chr.toUpperCase())
+                .replace(/[^a-zA-Z0-9_$]/g, '')
+                .replace(/^[0-9]/, '_$&');
+    }
+    
+    // Convert to PascalCase function
+    function toPascalCase(str) {
+      const camelCase = toCamelCase(str);
+      return camelCase.charAt(0).toUpperCase() + camelCase.slice(1);
+    }
+    
+    // Generate Dart class for nested objects
+    function generateNestedClass(obj, className, useNullSafety, createToJson, createFromJson) {
+      let nestedClasses = [];
+      const properties = [];
+      const toJsonProperties = [];
+      const fromJsonProperties = [];
+      
+      for (const [key, value] of Object.entries(obj)) {
+        const propertyName = toCamelCase(key);
+        let propertyType = detectType(value, useNullSafety);
+        
+        // Handle nested objects
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          const nestedClassName = toPascalCase(key);
+          propertyType = nestedClassName + (useNullSafety ? '?' : '');
+          
+          const nestedClassCode = generateNestedClass(
+            value, 
+            nestedClassName, 
+            useNullSafety, 
+            createToJson, 
+            createFromJson
+          );
+          nestedClasses.push(nestedClassCode);
+        }
+        
+        // Handle arrays of objects
+        if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
+          const nestedClassName = toPascalCase(key.endsWith('s') ? key.slice(0, -1) : key + 'Item');
+          propertyType = `List<${nestedClassName}>` + (useNullSafety ? '?' : '');
+          
+          const nestedClassCode = generateNestedClass(
+            value[0], 
+            nestedClassName, 
+            useNullSafety, 
+            createToJson, 
+            createFromJson
+          );
+          nestedClasses.push(nestedClassCode);
+        }
+        
+        properties.push(`  ${propertyType} ${propertyName};`);
+        
+        if (createToJson) {
+          if (propertyType.includes('List<') && propertyType.includes('>?')) {
+            toJsonProperties.push(`    '${key}': ${propertyName}${useNullSafety ? '?' : ''}.map((e) => e.toJson()).toList(),`);
+          } else if (propertyType.includes('List<') && !propertyType.includes('>?')) {
+            toJsonProperties.push(`    '${key}': ${propertyName}.map((e) => e.toJson()).toList(),`);
+          } else if (propertyType.endsWith('?') && !propertyType.startsWith('String') && 
+                    !propertyType.startsWith('int') && !propertyType.startsWith('double') && 
+                    !propertyType.startsWith('bool') && !propertyType.startsWith('dynamic')) {
+            toJsonProperties.push(`    '${key}': ${propertyName}?.toJson(),`);
+          } else if (!propertyType.endsWith('?') && !propertyType.startsWith('String') && 
+                    !propertyType.startsWith('int') && !propertyType.startsWith('double') && 
+                    !propertyType.startsWith('bool') && !propertyType.startsWith('dynamic')) {
+            toJsonProperties.push(`    '${key}': ${propertyName}.toJson(),`);
+          } else {
+            toJsonProperties.push(`    '${key}': ${propertyName},`);
+          }
+        }
+        
+        if (createFromJson) {
+          if (propertyType.includes('List<') && !propertyType.startsWith('List<dynamic') && !propertyType.startsWith('List<String') && 
+              !propertyType.startsWith('List<int') && !propertyType.startsWith('List<double') && !propertyType.startsWith('List<bool')) {
+            const listType = propertyType.replace('List<', '').replace('>?', '').replace('>', '');
+            fromJsonProperties.push(`      ${propertyName}: json['${key}'] != null ? List<${listType}>.from(json['${key}'].map((x) => ${listType}.fromJson(x))) : ${useNullSafety ? 'null' : '[]'},`);
+          } else if (propertyType.endsWith('?') && !propertyType.startsWith('String') && 
+                    !propertyType.startsWith('int') && !propertyType.startsWith('double') && 
+                    !propertyType.startsWith('bool') && !propertyType.startsWith('dynamic') && 
+                    !propertyType.startsWith('List')) {
+            const type = propertyType.replace('?', '');
+            fromJsonProperties.push(`      ${propertyName}: json['${key}'] != null ? ${type}.fromJson(json['${key}']) : null,`);
+          } else if (!propertyType.endsWith('?') && !propertyType.startsWith('String') && 
+                    !propertyType.startsWith('int') && !propertyType.startsWith('double') && 
+                    !propertyType.startsWith('bool') && !propertyType.startsWith('dynamic') && 
+                    !propertyType.startsWith('List')) {
+            fromJsonProperties.push(`      ${propertyName}: ${propertyType}.fromJson(json['${key}']),`);
+          } else {
+            fromJsonProperties.push(`      ${propertyName}: json['${key}'],`);
+          }
+        }
+      }
+      
+      let classCode = `class ${className} {\n`;
+      classCode += properties.join('\n') + '\n\n';
+      
+      // Constructor
+      classCode += `  ${className}({\n`;
+      const constructorParams = properties.map(p => {
+        const parts = p.trim().split(' ');
+        return `    ${useNullSafety && !parts[0].endsWith('?') ? 'required ' : ''}this.${parts[1].replace(';', '')},`;
+      });
+      classCode += constructorParams.join('\n') + '\n';
+      classCode += '  });\n\n';
+      
+      // fromJson method
+      if (createFromJson) {
+        classCode += `  factory ${className}.fromJson(Map<String, dynamic> json) {\n`;
+        classCode += '    return ${className}(\n';
+        classCode += fromJsonProperties.join('\n') + '\n';
+        classCode += '    );\n';
+        classCode += '  }\n\n';
+      }
+      
+      // toJson method
+      if (createToJson) {
+        classCode += '  Map<String, dynamic> toJson() {\n';
+        classCode += '    return {\n';
+        classCode += toJsonProperties.join('\n') + '\n';
+        classCode += '    };\n';
+        classCode += '  }\n';
+      }
+      
+      classCode += '}\n';
+      
+      return nestedClasses.join('\n') + '\n' + classCode;
+    }
+    
+    // Main function to generate Dart code
+    function generateDartCode(jsonObject, className, useNullSafety, createToJson, createFromJson) {
+      let dartCode = '';
+      
+      if (Array.isArray(jsonObject)) {
+        if (jsonObject.length === 0) {
+          showAlert('Empty array! Please provide a valid JSON object.', 'warning');
+          return '';
+        }
+        jsonObject = jsonObject[0]; // Use the first item for the class structure
+      }
+      
+      dartCode = generateNestedClass(jsonObject, className, useNullSafety, createToJson, createFromJson);
+      
+      return dartCode;
+    }
+    
+    // Add event listener for the Enter key in the JSON input
+    document.getElementById('jsonInput').addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.key === 'Enter') {
+        convertJsonToDart();
+      }
+    });
+  </script>
+</body>
+</html>
